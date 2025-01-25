@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres_dockerizing
+    ports:
+      - 5432:5432
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sh:/docker-entrypoint-initdb.d/init.sh
+    networks:
+      - fullstack
+
+  api:
+    container_name: geoassistant_api
+    build:
+      context: .
+    ports:
+      - 8080:8080
+    restart: always
+    volumes:
+      - ./app:/usr/src/app
+    depends_on:
+      - postgres
+    networks:
+      - fullstack
+
+volumes:
+  postgres_data:
+  api_volume:
+
+networks:
+  fullstack:
+    driver: bridge

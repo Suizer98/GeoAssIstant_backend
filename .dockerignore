@@ -1,0 +1,10 @@
+# Ignore local Go build files
+main
+*.out
+
+# Ignore Go vendor directory
+vendor/
+
+# Ignore temporary files
+*.log
+*.tmp
