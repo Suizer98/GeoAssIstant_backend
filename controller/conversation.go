@@ -17,6 +17,16 @@ func NewConversationController(db *sql.DB) *ConversationController {
 	return &ConversationController{DB: db}
 }
 
+// @Summary Get conversations by user ID
+// @Description Fetch a list of conversations for a specific user by their user ID
+// @Tags conversations
+// @Produce json
+// @Param user_id query string true "User ID to fetch conversations"
+// @Success 200 {object} map[string]interface{} "Success response with conversations data"
+// @Failure 400 {object} map[string]interface{} "Bad request - user_id query parameter is required"
+// @Failure 404 {object} map[string]interface{} "No conversations found for the given user ID"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch conversations due to an internal server error"
+// @Router /conversations [get]
 func (c *ConversationController) GetConversations(ctx *gin.Context) {
 	userID := ctx.Query("user_id")
 	repo := repository.NewConversationRepository(c.DB)
@@ -40,6 +50,16 @@ func (c *ConversationController) GetConversations(ctx *gin.Context) {
 	ctx.JSON(http.StatusBadRequest, gin.H{"status": "failed", "message": "user_id query parameter is required"})
 }
 
+// @Summary Create a new conversation
+// @Description Add a new conversation to the database
+// @Tags conversations
+// @Accept json
+// @Produce json
+// @Param conversation body model.Conversation true "New conversation data"
+// @Success 201 {object} map[string]interface{} "Conversation successfully created"
+// @Failure 400 {object} map[string]interface{} "Invalid request data"
+// @Failure 500 {object} map[string]interface{} "Failed to create conversation due to an internal server error"
+// @Router /conversations [post]
 func (c *ConversationController) CreateConversation(ctx *gin.Context) {
 	var newConversation model.Conversation
 	if err := ctx.ShouldBindJSON(&newConversation); err != nil {

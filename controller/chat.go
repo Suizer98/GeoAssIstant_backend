@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync"
 
+	"geoai-app/model"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -38,11 +39,18 @@ func NewChatController() *ChatController {
 	}
 }
 
-// HandleChatRequest processes requests for the /chat route
+// @Summary Handle chat requests
+// @Description Process chat requests and generate responses using the Groq API
+// @Tags chat
+// @Accept json
+// @Produce json
+// @Param requestBody body model.ChatRequest true "Chat request body"
+// @Success 200 {object} map[string]string "Assistant's response"
+// @Failure 400 {object} map[string]interface{} "Bad request - missing or invalid input"
+// @Failure 500 {object} map[string]interface{} "Server error - issue with Groq API or environment variables"
+// @Router /chat [post]
 func (cc *ChatController) HandleChatRequest(c *gin.Context) {
-	var requestBody struct {
-		Content string `json:"content" binding:"required"`
-	}
+	var requestBody model.ChatRequest
 
 	// Parse the incoming request
 	if err := c.ShouldBindJSON(&requestBody); err != nil {

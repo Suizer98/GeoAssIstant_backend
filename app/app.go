@@ -1,3 +1,17 @@
+// @title GeoAI App API
+// @version 1.0
+// @description This is the API documentation for GeoAI App.
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name GeoAssistant Team
+// @contact.email teysuizer1998@gmail.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /
+
 package app
 
 import (
@@ -6,8 +20,12 @@ import (
 	"log"
 	"time"
 
+	// For swagger use
 	"geoai-app/controller"
+	"geoai-app/docs"
 	"github.com/gin-gonic/gin"
+	"github.com/swaggo/files"
+	"github.com/swaggo/gin-swagger"
 )
 
 type App struct {
@@ -38,6 +56,17 @@ func (a *App) CreateConnection() {
 
 func (a *App) CreateRoutes() {
 	routes := gin.Default()
+
+	// Swagger documentation route
+	docs.SwaggerInfo.BasePath = "/"
+	// Register Swagger handler for UI and doc.json
+	routes.GET("/swagger/*any", func(c *gin.Context) {
+		if c.Request.URL.Path == "/swagger/" {
+			c.Redirect(302, "/swagger/index.html")
+		} else {
+			ginSwagger.WrapHandler(swaggerFiles.Handler)(c)
+		}
+	})
 
 	// Initialize controllers
 	userController := controller.NewUserController(a.DB)

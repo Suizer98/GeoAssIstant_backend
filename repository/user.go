@@ -54,10 +54,18 @@ func (r *UserRepository) GetUserByID(ID string) (*model.User, error) {
 }
 
 // CreateUser inserts a new user into the database
+// CreateUser inserts a new user into the database
 func (r *UserRepository) CreateUser(user *model.User) error {
+	query := `
+		INSERT INTO users (username, password, email, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, created_at, updated_at
+	`
+
 	err := r.DB.QueryRow(
-		"INSERT INTO users (username, password, email) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at",
-		user.Username, user.Password, user.Email,
+		query,
+		user.Username, user.Password, user.Email, user.CreatedAt, user.UpdatedAt,
 	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+
 	return err
 }

@@ -20,7 +20,14 @@ docker build -t geoassistant_api . && \
 docker create --name temp_geoassistant_api geoassistant_api && \
 docker cp temp_geoassistant_api:/usr/src/app/go.mod ./go.mod && \
 docker cp temp_geoassistant_api:/usr/src/app/go.sum ./go.sum && \
+docker cp temp_geoassistant_api:/usr/src/app/docs/. ./docs && \
 docker rm temp_geoassistant_api
+```
+
+### Update Swagger docs
+
+```
+docker exec geoassistant_api swag init
 ```
 
 ### Check linting and typing
