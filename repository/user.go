@@ -7,7 +7,7 @@ import (
 
 type UserRepositoryInterface interface {
 	GetAllUsers() ([]model.User, error)
-	GetUserById(id string) (*model.User, error)
+	GetUserByID(ID string) (*model.User, error)
 	CreateUser(user *model.User) error
 }
 
@@ -30,7 +30,7 @@ func (r *UserRepository) GetAllUsers() ([]model.User, error) {
 	var users []model.User
 	for rows.Next() {
 		var user model.User
-		err := rows.Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+		err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -39,11 +39,11 @@ func (r *UserRepository) GetAllUsers() ([]model.User, error) {
 	return users, nil
 }
 
-// GetUserById retrieves a user by their ID
-func (r *UserRepository) GetUserById(id string) (*model.User, error) {
-	row := r.DB.QueryRow("SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1", id)
+// GetUserByID retrieves a user by their ID
+func (r *UserRepository) GetUserByID(ID string) (*model.User, error) {
+	row := r.DB.QueryRow("SELECT id, username, email, created_at, updated_at FROM users WHERE id = $1", ID)
 	var user model.User
-	err := row.Scan(&user.Id, &user.Username, &user.Email, &user.CreatedAt, &user.UpdatedAt)
+	err := row.Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -58,6 +58,6 @@ func (r *UserRepository) CreateUser(user *model.User) error {
 	err := r.DB.QueryRow(
 		"INSERT INTO users (username, password, email) VALUES ($1, $2, $3) RETURNING id, created_at, updated_at",
 		user.Username, user.Password, user.Email,
-	).Scan(&user.Id, &user.CreatedAt, &user.UpdatedAt)
+	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	return err
 }

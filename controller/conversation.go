@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"geoai-app/model"
 	"geoai-app/repository"
+	"github.com/gin-gonic/gin"
 )
 
 type ConversationController struct {
@@ -23,7 +23,7 @@ func (c *ConversationController) GetConversations(ctx *gin.Context) {
 
 	if userID != "" {
 		// Fetch conversations by user ID
-		conversations, err := repo.GetConversationsByUserId(userID)
+		conversations, err := repo.GetConversationsByUserID(userID)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"status": "failed", "message": "Failed to fetch conversations"})
 			return

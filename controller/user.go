@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
 	"geoai-app/model"
 	"geoai-app/repository"
+	"github.com/gin-gonic/gin"
 )
 
 type UserController struct {
@@ -23,7 +23,7 @@ func (u *UserController) GetUsers(ctx *gin.Context) {
 
 	if userID != "" {
 		// Fetch specific user by ID
-		user, err := repo.GetUserById(userID)
+		user, err := repo.GetUserByID(userID)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"status": "failed", "message": "Failed to fetch user"})
 			return

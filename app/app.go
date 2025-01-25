@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"geoai-app/controller"
+	"github.com/gin-gonic/gin"
 )
 
 type App struct {
@@ -59,5 +59,7 @@ func (a *App) CreateRoutes() {
 }
 
 func (a *App) Run() {
-	a.Routes.Run(":8080")
+	if err := a.Routes.Run(":8080"); err != nil {
+		log.Fatalf("Failed to start the server: %v", err)
+	}
 }

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"sync"
@@ -28,7 +28,7 @@ func NewChatController() *ChatController {
 
 	// Initialize with system prompt
 	systemPrompt := map[string]string{
-		"role": "system",
+		"role":    "system",
 		"content": "You are a helpful assistant named GeoAI. Respond concisely to the user's queries.",
 	}
 
@@ -95,7 +95,7 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 	defer resp.Body.Close()
 
 	// Read the response body
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read the response"})
 		return

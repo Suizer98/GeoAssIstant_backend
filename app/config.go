@@ -1,8 +1,8 @@
 package app
 
 var (
- UNAMEDB string = "postgres"
- PASSDB string = "postgres123"
- HOSTDB string = "postgres"
- DBNAME string = "geoaistore"
+	UNAMEDB = "postgres"
+	PASSDB  = "postgres123"
+	HOSTDB  = "postgres"
+	DBNAME  = "geoaistore"
 )
