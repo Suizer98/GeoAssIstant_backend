@@ -29,8 +29,12 @@ func NewChatController() *ChatController {
 
 	// Initialize with system prompt
 	systemPrompt := map[string]string{
-		"role":    "system",
-		"content": "You are a helpful assistant named GeoAI. Respond concisely to the user's queries.",
+		"role": "system",
+		"content": `You are a helpful assistant named GeoAI. Respond concisely to the user's queries in the following format:
+		{
+		"locations": "comma-separated list of key locations",
+		"messages": "detailed response to the user's query"
+		}`,
 	}
 
 	return &ChatController{
@@ -109,7 +113,7 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 		return
 	}
 
-	// Parse and append the assistant's response to the chat history
+	// Parse the API response
 	var apiResponse struct {
 		Choices []struct {
 			Message map[string]string `json:"message"`
@@ -120,11 +124,42 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 		return
 	}
 
+	// Extract the assistant's response
 	assistantResponse := apiResponse.Choices[0].Message
+	content := assistantResponse["content"]
+
+	// Parse the response content to extract `locations` and `messages`
+	locations, messages := extractStructuredContent(content)
+
+	// Add the assistant's response to the chat history
 	cc.mu.Lock()
 	cc.ChatHistory = append(cc.ChatHistory, assistantResponse)
 	cc.mu.Unlock()
 
-	// Return the assistant's response to the client
-	c.JSON(http.StatusOK, assistantResponse)
+	// Return the transformed structured response
+	c.JSON(http.StatusOK, gin.H{
+		"role": "assistant",
+		"content": map[string]string{
+			"locations": locations,
+			"messages":  messages,
+		},
+	})
+}
+
+// extractStructuredContent extracts `locations` and `messages` from the JSON content
+func extractStructuredContent(content string) (string, string) {
+	// Define a structure to match the expected response
+	var parsedContent struct {
+		Locations string `json:"locations"`
+		Messages  string `json:"messages"`
+	}
+
+	// Try to parse the content as JSON
+	if err := json.Unmarshal([]byte(content), &parsedContent); err != nil {
+		// If parsing fails, fall back to returning the original content as `messages`
+		return "", content
+	}
+
+	// Return the extracted locations and messages
+	return parsedContent.Locations, parsedContent.Messages
 }
