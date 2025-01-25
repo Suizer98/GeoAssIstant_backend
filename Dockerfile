@@ -1,29 +1,21 @@
-# Use the official Go image
 FROM golang:1.23
 
-# Set the working directory
-WORKDIR /app
+RUN go install github.com/githubnemo/CompileDaemon@latest
 
-# Initialize a new Go module directly in the container
-# RUN go mod init app
-COPY go.mod ./
+WORKDIR /usr/src/app
+COPY . /usr/src/app/
 
-# Install dependencies
-RUN go get -u github.com/gin-gonic/gin \
+# Initialize a Go module inside the container
+RUN go mod init geoai-app || true
+RUN go get github.com/gin-gonic/gin \
+    && go get github.com/joho/godotenv \
     && go get github.com/golang-migrate/migrate/v4 \
-    && go get github.com/lib/pq
+    && go get github.com/golang-migrate/migrate/v4/database/postgres \
+    && go get github.com/golang-migrate/migrate/v4/source/file \
+    && go get github.com/lib/pq \
+    && go mod tidy
 
-# Copy the application source code into the container
-COPY . .
-
-# Download and verify dependencies
-RUN go mod tidy
-
-# Build the application
-RUN go build -v -o main .
-
-# Expose the application's port
 EXPOSE 8080
 
-# Command to run the application
-CMD ["/app/main"]
+# Start the application with CompileDaemon for hot reload
+CMD ["CompileDaemon", "--build=go build -o main .", "--command=./main", "--polling"]

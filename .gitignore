@@ -1,0 +1,66 @@
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+main
+
+# Go build artifacts
+*.log
+*.test
+*.out
+
+# Dependencies
+vendor/
+
+# Go modules
+go.sum
+go.mod
+
+# IDE and editor config files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Docker-related files
+.env
+*.env
+docker-compose.override.yml
+*.log
+/tmp
+docker-compose.yml.bak
+
+# PostgreSQL data and files
+postgres_data/
+
+# Logs
+*.log
+*.pid
+
+# Temporary files
+*.tmp
+*.bak
+*.old
+*.orig
+*.rej
+*.sublime-project
+*.sublime-workspace
+
+# Output directory for `docker cp`
+/output
+
+# Air live reload configuration file
+air.toml
+
+# Coverage files
+*.coverprofile
+*.cov
+
+# Git-specific files
+.git/

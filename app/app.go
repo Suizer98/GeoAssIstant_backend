@@ -1,18 +1,18 @@
 package app
 
 import (
- "database/sql"
- "fmt"
- "log"
- "time"
+	"database/sql"
+	"fmt"
+	"log"
+	"time"
 
- "github.com/gin-gonic/gin"
- "geoai-app/controller"
+	"github.com/gin-gonic/gin"
+	"geoai-app/controller"
 )
 
 type App struct {
- DB     *sql.DB
- Routes *gin.Engine
+	DB     *sql.DB
+	Routes *gin.Engine
 }
 
 func (a *App) CreateConnection() {
@@ -39,8 +39,10 @@ func (a *App) CreateConnection() {
 func (a *App) CreateRoutes() {
 	routes := gin.Default()
 
+	// Initialize controllers
 	userController := controller.NewUserController(a.DB)
 	conversationController := controller.NewConversationController(a.DB)
+	chatController := controller.NewChatController()
 
 	// User routes
 	routes.GET("/users", userController.GetUsers)
@@ -50,9 +52,12 @@ func (a *App) CreateRoutes() {
 	routes.GET("/conversations", conversationController.GetConversations)
 	routes.POST("/conversations", conversationController.CreateConversation)
 
+	// Chat route
+	routes.POST("/chat", chatController.HandleChatRequest)
+
 	a.Routes = routes
 }
 
-func (a *App) Run(){
- a.Routes.Run(":8080")
+func (a *App) Run() {
+	a.Routes.Run(":8080")
 }

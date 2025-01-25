@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:latest
-    container_name: postgres_dockerizing
+    container_name: geoassistant_postgres
     ports:
       - 5432:5432
     restart: always
@@ -16,13 +16,14 @@ services:
 
   api:
     container_name: geoassistant_api
+    image: geoassistant_api
     build:
       context: .
     ports:
       - 8080:8080
     restart: always
     volumes:
-      - ./app:/usr/src/app
+      - .:/usr/src/app
     depends_on:
       - postgres
     networks:
