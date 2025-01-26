@@ -1,3 +1,4 @@
+basePath: /
 definitions:
   model.ChatRequest:
     properties:
@@ -6,20 +7,6 @@ definitions:
         type: string
     required:
     - content
-    type: object
-  model.Conversation:
-    properties:
-      chat_history: {}
-      conversation_id:
-        type: string
-      created_at:
-        type: string
-      id:
-        type: integer
-      updated_at:
-        type: string
-      user_id:
-        type: integer
     type: object
   model.CreateUserRequest:
     properties:
@@ -49,22 +36,35 @@ definitions:
       username:
         type: string
     type: object
+host: localhost:8080
 info:
-  contact: {}
+  contact:
+    email: teysuizer1998@gmail.com
+    name: GeoAssistant Team
+  description: This is the API documentation for GeoAI App.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: GeoAI App API
+  version: "1.0"
 paths:
   /chat:
     post:
       consumes:
       - application/json
-      description: Process chat requests and generate responses using the Groq API.
-        Optionally, provide a `user_id` query parameter to associate the chat with
-        a specific user.
+      description: Start a new conversation or continue an existing one
       parameters:
-      - description: Optional User ID to associate the chat with a user
+      - description: User ID to associate the chat
         in: query
         name: user_id
+        required: true
         type: string
-      - description: Chat request body containing the user's input
+      - description: UUID of the existing conversation
+        in: query
+        name: uuid
+        type: string
+      - description: Chat request body
         in: body
         name: requestBody
         required: true
@@ -74,22 +74,22 @@ paths:
       - application/json
       responses:
         "200":
-          description: Assistant's response, with locations and messages
+          description: Chat response
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad request - missing or invalid input
+          description: Bad request
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: User not found
+          description: Conversation not found
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Server error - issue with Groq API or database operations
+          description: Internal server error
           schema:
             additionalProperties: true
             type: object
@@ -98,8 +98,7 @@ paths:
       - chat
   /conversations:
     get:
-      description: Fetch a list of conversations for a specific user by their user
-        ID
+      description: List all conversations for a user
       parameters:
       - description: User ID to fetch conversations
         in: query
@@ -110,58 +109,26 @@ paths:
       - application/json
       responses:
         "200":
-          description: Success response with conversations data
+          description: List of conversations
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad request - user_id query parameter is required
+          description: Invalid request
           schema:
             additionalProperties: true
             type: object
         "404":
-          description: No conversations found for the given user ID
+          description: No conversations found
           schema:
             additionalProperties: true
             type: object
         "500":
-          description: Failed to fetch conversations due to an internal server error
+          description: Internal server error
           schema:
             additionalProperties: true
             type: object
-      summary: Get conversations by user ID
-      tags:
-      - conversations
-    post:
-      consumes:
-      - application/json
-      description: Add a new conversation to the database
-      parameters:
-      - description: New conversation data
-        in: body
-        name: conversation
-        required: true
-        schema:
-          $ref: '#/definitions/model.Conversation'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Conversation successfully created
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request data
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Failed to create conversation due to an internal server error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Create a new conversation
+      summary: List conversations
       tags:
       - conversations
   /users:

@@ -9,7 +9,15 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {},
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "GeoAssistant Team",
+            "email": "teysuizer1998@gmail.com"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -17,7 +25,7 @@ const docTemplate = `{
     "paths": {
         "/chat": {
             "post": {
-                "description": "Process chat requests and generate responses using the Groq API. Optionally, provide a ` + "`" + `user_id` + "`" + ` query parameter to associate the chat with a specific user.",
+                "description": "Start a new conversation or continue an existing one",
                 "consumes": [
                     "application/json"
                 ],
@@ -31,12 +39,19 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Optional User ID to associate the chat with a user",
+                        "description": "User ID to associate the chat",
                         "name": "user_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID of the existing conversation",
+                        "name": "uuid",
                         "in": "query"
                     },
                     {
-                        "description": "Chat request body containing the user's input",
+                        "description": "Chat request body",
                         "name": "requestBody",
                         "in": "body",
                         "required": true,
@@ -47,28 +62,28 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Assistant's response, with locations and messages",
+                        "description": "Chat response",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad request - missing or invalid input",
+                        "description": "Bad request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "Conversation not found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Server error - issue with Groq API or database operations",
+                        "description": "Internal server error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -79,14 +94,14 @@ const docTemplate = `{
         },
         "/conversations": {
             "get": {
-                "description": "Fetch a list of conversations for a specific user by their user ID",
+                "description": "List all conversations for a user",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "conversations"
                 ],
-                "summary": "Get conversations by user ID",
+                "summary": "List conversations",
                 "parameters": [
                     {
                         "type": "string",
@@ -98,75 +113,28 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Success response with conversations data",
+                        "description": "List of conversations",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad request - user_id query parameter is required",
+                        "description": "Invalid request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "404": {
-                        "description": "No conversations found for the given user ID",
+                        "description": "No conversations found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "500": {
-                        "description": "Failed to fetch conversations due to an internal server error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "Add a new conversation to the database",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "conversations"
-                ],
-                "summary": "Create a new conversation",
-                "parameters": [
-                    {
-                        "description": "New conversation data",
-                        "name": "conversation",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.Conversation"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Conversation successfully created",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request data",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Failed to create conversation due to an internal server error",
+                        "description": "Internal server error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -278,27 +246,6 @@ const docTemplate = `{
                 }
             }
         },
-        "model.Conversation": {
-            "type": "object",
-            "properties": {
-                "chat_history": {},
-                "conversation_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "user_id": {
-                    "type": "integer"
-                }
-            }
-        },
         "model.CreateUserRequest": {
             "type": "object",
             "required": [
@@ -346,12 +293,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
-	Host:             "",
-	BasePath:         "",
+	Version:          "1.0",
+	Host:             "localhost:8080",
+	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "GeoAI App API",
+	Description:      "This is the API documentation for GeoAI App.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

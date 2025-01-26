@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 
 	"geoai-app/model"
@@ -30,7 +31,6 @@ func NewChatController(db *sql.DB) *ChatController {
 		fmt.Println("Warning: No .env file found")
 	}
 
-	// Initialize with system prompt
 	systemPrompt := map[string]string{
 		"role": "system",
 		"content": `You are a helpful assistant named GeoAI. Respond concisely to the user's queries in the following format:
@@ -48,43 +48,76 @@ func NewChatController(db *sql.DB) *ChatController {
 }
 
 // @Summary Handle chat requests
-// @Description Process chat requests and generate responses using the Groq API. Optionally, provide a `user_id` query parameter to associate the chat with a specific user.
+// @Description Start a new conversation or continue an existing one
 // @Tags chat
 // @Accept json
 // @Produce json
-// @Param user_id query string false "Optional User ID to associate the chat with a user"
-// @Param requestBody body model.ChatRequest true "Chat request body containing the user's input"
-// @Success 200 {object} map[string]interface{} "Assistant's response, with locations and messages"
-// @Failure 400 {object} map[string]interface{} "Bad request - missing or invalid input"
-// @Failure 404 {object} map[string]interface{} "User not found"
-// @Failure 500 {object} map[string]interface{} "Server error - issue with Groq API or database operations"
+// @Param user_id query string true "User ID to associate the chat"
+// @Param uuid query string false "UUID of the existing conversation"
+// @Param requestBody body model.ChatRequest true "Chat request body"
+// @Success 200 {object} map[string]interface{} "Chat response"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 404 {object} map[string]interface{} "Conversation not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /chat [post]
 func (cc *ChatController) HandleChatRequest(c *gin.Context) {
-	userID := c.Query("user_id")
-	var user *model.User
-	var err error
+	userIDStr := c.Query("user_id")
+	conversationUUID := c.Query("uuid")
 
-	// Validate user if user_id is provided
-	if userID != "" {
-		userRepo := repository.NewUserRepository(cc.DB)
-		user, err = userRepo.GetUserByID(userID)
+	if userIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	// Parse user ID to uint
+	userID, err := strconv.ParseUint(userIDStr, 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id format"})
+		return
+	}
+
+	// Initialize repositories
+	conversationRepo := repository.NewConversationRepository(cc.DB)
+
+	var conversation *model.Conversation
+
+	if conversationUUID == "" {
+		// Create a new conversation
+		conversation = &model.Conversation{
+			UserID:         uint(userID),
+			ConversationID: uuid.New().String(),
+			ChatHistory:    []map[string]string{cc.SystemPrompt},
+		}
+		// Use the same "err" variable instead of redeclaring
+		err = conversationRepo.CreateConversation(conversation)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create a new conversation"})
 			return
 		}
-		if user == nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id: user not found"})
+		cc.ChatHistory = conversation.ChatHistory
+	} else {
+		// Continue an existing conversation
+		conversation, err = conversationRepo.GetConversationByUUID(conversationUUID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conversation"})
 			return
 		}
+		if conversation == nil || conversation.UserID != uint(userID) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Conversation not found"})
+			return
+		}
+		cc.ChatHistory = conversation.ChatHistory
 	}
 
 	var requestBody model.ChatRequest
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
+	// Use the same "err" variable instead of redeclaring
+	err = c.ShouldBindJSON(&requestBody)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Add the user's input to chat history
+	// Append user input
 	cc.mu.Lock()
 	cc.ChatHistory = append(cc.ChatHistory, map[string]string{
 		"role":    "user",
@@ -92,28 +125,52 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 	})
 	cc.mu.Unlock()
 
-	apiKey := os.Getenv("GROQ_API_KEY")
-	if apiKey == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "GROQ_API_KEY is not set"})
+	// Send to Groq API
+	responseMessage, err := sendToGroqAPI(cc.ChatHistory)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch response from Groq API"})
 		return
 	}
 
-	// Make request to the Groq API
+	cc.mu.Lock()
+	cc.ChatHistory = append(cc.ChatHistory, responseMessage)
+	cc.mu.Unlock()
+
+	// Update conversation
+	conversation.ChatHistory = cc.ChatHistory
+	err = conversationRepo.UpdateConversation(conversation)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save conversation"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"response": responseMessage})
+}
+
+// Helper function to interact with the Groq API
+func sendToGroqAPI(chatHistory []map[string]string) (map[string]string, error) {
+	apiKey := os.Getenv("GROQ_API_KEY")
+	if apiKey == "" {
+		fmt.Println("GROQ_API_KEY is not set")
+		return nil, fmt.Errorf("GROQ_API_KEY not set")
+	}
+
 	payload := map[string]interface{}{
 		"model":    "llama-3.3-70b-versatile",
-		"messages": cc.ChatHistory,
+		"messages": chatHistory,
 	}
 
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request payload"})
-		return
+		fmt.Printf("Error marshaling payload: %v\n", err)
+		return nil, err
 	}
+	fmt.Printf("Payload: %s\n", string(payloadBytes))
 
 	req, err := http.NewRequest("POST", "https://api.groq.com/openai/v1/chat/completions", bytes.NewReader(payloadBytes))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
-		return
+		fmt.Printf("Error creating HTTP request: %v\n", err)
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
@@ -121,15 +178,20 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to make the request"})
-		return
+		fmt.Printf("Error making HTTP request: %v\n", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read the response"})
-		return
+		fmt.Printf("Error reading response body: %v\n", err)
+		return nil, err
+	}
+	fmt.Printf("API Response Status: %d, Body: %s\n", resp.StatusCode, string(respBody))
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Groq API returned status: %d, body: %s", resp.StatusCode, string(respBody))
 	}
 
 	var apiResponse struct {
@@ -138,55 +200,13 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(respBody, &apiResponse); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse API response"})
-		return
+		fmt.Printf("Error unmarshaling response: %v\n", err)
+		return nil, err
 	}
 
-	assistantResponse := apiResponse.Choices[0].Message
-	cc.mu.Lock()
-	cc.ChatHistory = append(cc.ChatHistory, assistantResponse)
-	cc.mu.Unlock()
-
-	// Save conversation if user_id is provided and valid
-	if user != nil {
-		conversationRepo := repository.NewConversationRepository(cc.DB)
-
-		// Check for existing conversation
-		existingConversation, err := conversationRepo.GetLatestConversationByUserID(int(user.ID))
-		if err != nil && err != sql.ErrNoRows {
-			fmt.Printf("Error fetching latest conversation: %v\n", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conversation"})
-			return
-		}
-
-		if existingConversation == nil {
-			// Create a new conversation
-			conversation := model.Conversation{
-				UserID:         user.ID,
-				ConversationID: uuid.New().String(),
-				ChatHistory:    cc.ChatHistory, // Pass raw Go type
-			}
-
-			if err := conversationRepo.CreateConversation(&conversation); err != nil {
-				fmt.Printf("Error saving conversation: %v\n", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save conversation"})
-				return
-			}
-		} else {
-			// Update the existing conversation
-			existingConversation.ChatHistory = cc.ChatHistory
-
-			if err := conversationRepo.UpdateConversation(existingConversation); err != nil {
-				fmt.Printf("Error updating conversation: %v\n", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update conversation"})
-				return
-			}
-		}
+	if len(apiResponse.Choices) == 0 {
+		return nil, fmt.Errorf("No choices returned in response")
 	}
 
-	// Return the assistant's response
-	c.JSON(http.StatusOK, gin.H{
-		"role":    "assistant",
-		"content": assistantResponse,
-	})
+	return apiResponse.Choices[0].Message, nil
 }

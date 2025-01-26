@@ -79,7 +79,6 @@ func (a *App) CreateRoutes() {
 
 	// Conversation routes
 	routes.GET("/conversations", conversationController.GetConversations)
-	routes.POST("/conversations", conversationController.CreateConversation)
 
 	// Chat route
 	routes.POST("/chat", chatController.HandleChatRequest)
