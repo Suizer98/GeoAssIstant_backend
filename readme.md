@@ -4,6 +4,10 @@
 
 Geo Assistant is a conversational system designed to provide geospatial assistance and plans. It integrates a Groq API, allowing users to engage with different AI models to solve geospatial queries efficiently. The system supports maintaining conversation history and user management.
 
+Staging development side: https://geoassistant-backend.onrender.com/swagger/index.html
+
+Currently it uses both free tier web service and postgressql instance from Render, and limited requests are allowed for GroqCloud API.
+
 ## Tech stacks:
 ![Tech Stacks](https://skillicons.dev/icons?i=go,postgres,docker,bash)
 
