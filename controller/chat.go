@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,19 +11,21 @@ import (
 	"sync"
 
 	"geoai-app/model"
+	"geoai-app/repository"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
 
 type ChatController struct {
 	SystemPrompt map[string]string
 	ChatHistory  []map[string]string
-	mu           sync.Mutex // To handle concurrent access to ChatHistory
+	mu           sync.Mutex
+	DB           *sql.DB
 }
 
 // NewChatController creates a new instance of ChatController
-func NewChatController() *ChatController {
-	// Load the .env file
+func NewChatController(db *sql.DB) *ChatController {
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("Warning: No .env file found")
 	}
@@ -40,29 +43,48 @@ func NewChatController() *ChatController {
 	return &ChatController{
 		SystemPrompt: systemPrompt,
 		ChatHistory:  []map[string]string{systemPrompt},
+		DB:           db,
 	}
 }
 
 // @Summary Handle chat requests
-// @Description Process chat requests and generate responses using the Groq API
+// @Description Process chat requests and generate responses using the Groq API. Optionally, provide a `user_id` query parameter to associate the chat with a specific user.
 // @Tags chat
 // @Accept json
 // @Produce json
-// @Param requestBody body model.ChatRequest true "Chat request body"
-// @Success 200 {object} map[string]string "Assistant's response"
+// @Param user_id query string false "Optional User ID to associate the chat with a user"
+// @Param requestBody body model.ChatRequest true "Chat request body containing the user's input"
+// @Success 200 {object} map[string]interface{} "Assistant's response, with locations and messages"
 // @Failure 400 {object} map[string]interface{} "Bad request - missing or invalid input"
-// @Failure 500 {object} map[string]interface{} "Server error - issue with Groq API or environment variables"
+// @Failure 404 {object} map[string]interface{} "User not found"
+// @Failure 500 {object} map[string]interface{} "Server error - issue with Groq API or database operations"
 // @Router /chat [post]
 func (cc *ChatController) HandleChatRequest(c *gin.Context) {
-	var requestBody model.ChatRequest
+	userID := c.Query("user_id")
+	var user *model.User
+	var err error
 
-	// Parse the incoming request
+	// Validate user if user_id is provided
+	if userID != "" {
+		userRepo := repository.NewUserRepository(cc.DB)
+		user, err = userRepo.GetUserByID(userID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch user"})
+			return
+		}
+		if user == nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id: user not found"})
+			return
+		}
+	}
+
+	var requestBody model.ChatRequest
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Add the user input to the chat history
+	// Add the user's input to chat history
 	cc.mu.Lock()
 	cc.ChatHistory = append(cc.ChatHistory, map[string]string{
 		"role":    "user",
@@ -70,14 +92,13 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 	})
 	cc.mu.Unlock()
 
-	// Fetch the Groq API key from the environment
 	apiKey := os.Getenv("GROQ_API_KEY")
 	if apiKey == "" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "GROQ_API_KEY is not set"})
 		return
 	}
 
-	// Create the payload for the Groq API
+	// Make request to the Groq API
 	payload := map[string]interface{}{
 		"model":    "llama-3.3-70b-versatile",
 		"messages": cc.ChatHistory,
@@ -89,7 +110,6 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 		return
 	}
 
-	// Send the request to the Groq API
 	req, err := http.NewRequest("POST", "https://api.groq.com/openai/v1/chat/completions", bytes.NewReader(payloadBytes))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create request"})
@@ -106,14 +126,12 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	// Read the response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to read the response"})
 		return
 	}
 
-	// Parse the API response
 	var apiResponse struct {
 		Choices []struct {
 			Message map[string]string `json:"message"`
@@ -124,42 +142,51 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 		return
 	}
 
-	// Extract the assistant's response
 	assistantResponse := apiResponse.Choices[0].Message
-	content := assistantResponse["content"]
-
-	// Parse the response content to extract `locations` and `messages`
-	locations, messages := extractStructuredContent(content)
-
-	// Add the assistant's response to the chat history
 	cc.mu.Lock()
 	cc.ChatHistory = append(cc.ChatHistory, assistantResponse)
 	cc.mu.Unlock()
 
-	// Return the transformed structured response
+	// Save conversation if user_id is provided and valid
+	if user != nil {
+		conversationRepo := repository.NewConversationRepository(cc.DB)
+
+		// Check for existing conversation
+		existingConversation, err := conversationRepo.GetLatestConversationByUserID(int(user.ID))
+		if err != nil && err != sql.ErrNoRows {
+			fmt.Printf("Error fetching latest conversation: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch conversation"})
+			return
+		}
+
+		if existingConversation == nil {
+			// Create a new conversation
+			conversation := model.Conversation{
+				UserID:         user.ID,
+				ConversationID: uuid.New().String(),
+				ChatHistory:    cc.ChatHistory, // Pass raw Go type
+			}
+
+			if err := conversationRepo.CreateConversation(&conversation); err != nil {
+				fmt.Printf("Error saving conversation: %v\n", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save conversation"})
+				return
+			}
+		} else {
+			// Update the existing conversation
+			existingConversation.ChatHistory = cc.ChatHistory
+
+			if err := conversationRepo.UpdateConversation(existingConversation); err != nil {
+				fmt.Printf("Error updating conversation: %v\n", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update conversation"})
+				return
+			}
+		}
+	}
+
+	// Return the assistant's response
 	c.JSON(http.StatusOK, gin.H{
-		"role": "assistant",
-		"content": map[string]string{
-			"locations": locations,
-			"messages":  messages,
-		},
+		"role":    "assistant",
+		"content": assistantResponse,
 	})
-}
-
-// extractStructuredContent extracts `locations` and `messages` from the JSON content
-func extractStructuredContent(content string) (string, string) {
-	// Define a structure to match the expected response
-	var parsedContent struct {
-		Locations string `json:"locations"`
-		Messages  string `json:"messages"`
-	}
-
-	// Try to parse the content as JSON
-	if err := json.Unmarshal([]byte(content), &parsedContent); err != nil {
-		// If parsing fails, fall back to returning the original content as `messages`
-		return "", content
-	}
-
-	// Return the extracted locations and messages
-	return parsedContent.Locations, parsedContent.Messages
 }

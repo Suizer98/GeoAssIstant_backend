@@ -1,25 +1,12 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "This is the API documentation for GeoAI App.",
-        "title": "GeoAI App API",
-        "termsOfService": "http://swagger.io/terms/",
-        "contact": {
-            "name": "GeoAssistant Team",
-            "email": "teysuizer1998@gmail.com"
-        },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-        },
-        "version": "1.0"
+        "contact": {}
     },
-    "host": "localhost:8080",
-    "basePath": "/",
     "paths": {
         "/chat": {
             "post": {
-                "description": "Process chat requests and generate responses using the Groq API",
+                "description": "Process chat requests and generate responses using the Groq API. Optionally, provide a `user_id` query parameter to associate the chat with a specific user.",
                 "consumes": [
                     "application/json"
                 ],
@@ -32,7 +19,13 @@
                 "summary": "Handle chat requests",
                 "parameters": [
                     {
-                        "description": "Chat request body",
+                        "type": "string",
+                        "description": "Optional User ID to associate the chat with a user",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Chat request body containing the user's input",
                         "name": "requestBody",
                         "in": "body",
                         "required": true,
@@ -43,12 +36,10 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Assistant's response",
+                        "description": "Assistant's response, with locations and messages",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -58,8 +49,15 @@
                             "additionalProperties": true
                         }
                     },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "500": {
-                        "description": "Server error - issue with Groq API or environment variables",
+                        "description": "Server error - issue with Groq API or database operations",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true

@@ -71,7 +71,7 @@ func (a *App) CreateRoutes() {
 	// Initialize controllers
 	userController := controller.NewUserController(a.DB)
 	conversationController := controller.NewConversationController(a.DB)
-	chatController := controller.NewChatController()
+	chatController := controller.NewChatController(a.DB)
 
 	// User routes
 	routes.GET("/users", userController.GetUsers)

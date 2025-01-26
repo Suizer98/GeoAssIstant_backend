@@ -1,4 +1,3 @@
-basePath: /
 definitions:
   model.ChatRequest:
     properties:
@@ -50,26 +49,22 @@ definitions:
       username:
         type: string
     type: object
-host: localhost:8080
 info:
-  contact:
-    email: teysuizer1998@gmail.com
-    name: GeoAssistant Team
-  description: This is the API documentation for GeoAI App.
-  license:
-    name: Apache 2.0
-    url: http://www.apache.org/licenses/LICENSE-2.0.html
-  termsOfService: http://swagger.io/terms/
-  title: GeoAI App API
-  version: "1.0"
+  contact: {}
 paths:
   /chat:
     post:
       consumes:
       - application/json
-      description: Process chat requests and generate responses using the Groq API
+      description: Process chat requests and generate responses using the Groq API.
+        Optionally, provide a `user_id` query parameter to associate the chat with
+        a specific user.
       parameters:
-      - description: Chat request body
+      - description: Optional User ID to associate the chat with a user
+        in: query
+        name: user_id
+        type: string
+      - description: Chat request body containing the user's input
         in: body
         name: requestBody
         required: true
@@ -79,18 +74,22 @@ paths:
       - application/json
       responses:
         "200":
-          description: Assistant's response
+          description: Assistant's response, with locations and messages
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
         "400":
           description: Bad request - missing or invalid input
           schema:
             additionalProperties: true
             type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
         "500":
-          description: Server error - issue with Groq API or environment variables
+          description: Server error - issue with Groq API or database operations
           schema:
             additionalProperties: true
             type: object

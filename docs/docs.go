@@ -9,15 +9,7 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "http://swagger.io/terms/",
-        "contact": {
-            "name": "GeoAssistant Team",
-            "email": "teysuizer1998@gmail.com"
-        },
-        "license": {
-            "name": "Apache 2.0",
-            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
-        },
+        "contact": {},
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -25,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/chat": {
             "post": {
-                "description": "Process chat requests and generate responses using the Groq API",
+                "description": "Process chat requests and generate responses using the Groq API. Optionally, provide a ` + "`" + `user_id` + "`" + ` query parameter to associate the chat with a specific user.",
                 "consumes": [
                     "application/json"
                 ],
@@ -38,7 +30,13 @@ const docTemplate = `{
                 "summary": "Handle chat requests",
                 "parameters": [
                     {
-                        "description": "Chat request body",
+                        "type": "string",
+                        "description": "Optional User ID to associate the chat with a user",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "description": "Chat request body containing the user's input",
                         "name": "requestBody",
                         "in": "body",
                         "required": true,
@@ -49,12 +47,10 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Assistant's response",
+                        "description": "Assistant's response, with locations and messages",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -64,8 +60,15 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
+                    "404": {
+                        "description": "User not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
                     "500": {
-                        "description": "Server error - issue with Groq API or environment variables",
+                        "description": "Server error - issue with Groq API or database operations",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -343,12 +346,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
-	Host:             "localhost:8080",
-	BasePath:         "/",
+	Version:          "",
+	Host:             "",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "GeoAI App API",
-	Description:      "This is the API documentation for GeoAI App.",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
