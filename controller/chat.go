@@ -76,6 +76,18 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 		return
 	}
 
+	// Check if the user exists
+	userRepo := repository.NewUserRepository(cc.DB)
+	user, err := userRepo.GetUserByID(strconv.Itoa(int(userID)))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error checking user existence"})
+		return
+	}
+	if user == nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id: user does not exist"})
+		return
+	}
+
 	// Initialize repositories
 	conversationRepo := repository.NewConversationRepository(cc.DB)
 
@@ -88,7 +100,6 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 			ConversationID: uuid.New().String(),
 			ChatHistory:    []map[string]string{cc.SystemPrompt},
 		}
-		// Use the same "err" variable instead of redeclaring
 		err = conversationRepo.CreateConversation(conversation)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create a new conversation"})
@@ -110,7 +121,6 @@ func (cc *ChatController) HandleChatRequest(c *gin.Context) {
 	}
 
 	var requestBody model.ChatRequest
-	// Use the same "err" variable instead of redeclaring
 	err = c.ShouldBindJSON(&requestBody)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
