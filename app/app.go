@@ -9,14 +9,12 @@
 // @license.name Apache 2.0
 // @license.url http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host localhost:8080
-// @BasePath /
-
 package app
 
 import (
 	"database/sql"
 	"log"
+	"os"
 	"time"
 
 	// For swagger use
@@ -33,7 +31,6 @@ type App struct {
 }
 
 func (a *App) CreateConnection() {
-	// Use DBURL from the config
 	var db *sql.DB
 	var err error
 
@@ -56,8 +53,14 @@ func (a *App) CreateConnection() {
 func (a *App) CreateRoutes() {
 	routes := gin.Default()
 
-	// Swagger documentation route
+	// Dynamically set Swagger host
+	host := os.Getenv("SWAGGER_HOST")
+	if host == "" {
+		host = "localhost:8080"
+	}
+	docs.SwaggerInfo.Host = host
 	docs.SwaggerInfo.BasePath = "/"
+
 	// Register Swagger handler for UI and doc.json
 	routes.GET("/swagger/*any", func(c *gin.Context) {
 		if c.Request.URL.Path == "/swagger/" {
