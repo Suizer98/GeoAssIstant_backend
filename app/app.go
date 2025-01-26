@@ -16,7 +16,6 @@ package app
 
 import (
 	"database/sql"
-	"fmt"
 	"log"
 	"time"
 
@@ -34,12 +33,12 @@ type App struct {
 }
 
 func (a *App) CreateConnection() {
-	connStr := fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", UNAMEDB, PASSDB, HOSTDB, DBNAME)
+	// Use DBURL from the config
 	var db *sql.DB
 	var err error
 
 	for i := 0; i < 5; i++ { // Retry up to 5 times
-		db, err = sql.Open("postgres", connStr)
+		db, err = sql.Open("postgres", DBURL)
 		if err == nil {
 			if err = db.Ping(); err == nil {
 				a.DB = db
