@@ -90,7 +90,22 @@ func (u *UserController) CreateUser(ctx *gin.Context) {
 	// Save to the database
 	repo := repository.NewUserRepository(u.DB)
 	if err := repo.CreateUser(&newUser); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "failed", "message": "Failed to create user"})
+		// Check for duplicate email error
+		if err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"` {
+			ctx.JSON(http.StatusConflict, gin.H{
+				"status":  "failed",
+				"message": "Email already exists",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		// Handle other errors
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status":  "failed",
+			"message": "Failed to create user",
+			"error":   err.Error(),
+		})
 		return
 	}
 
