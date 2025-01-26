@@ -11,6 +11,9 @@ Currently it uses both free tier web service and postgressql instance from Rende
 ## Tech stacks:
 ![Tech Stacks](https://skillicons.dev/icons?i=go,postgres,docker,bash)
 
+## Staging Host/Development
+To deploy this on `Render` dashboard, simply create web service and set language to `Dockerfile`
+
 ## Local Development
 
 ### Spin up service
