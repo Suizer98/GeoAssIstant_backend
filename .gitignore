@@ -13,10 +13,6 @@ main
 # Dependencies
 vendor/
 
-# Go modules
-go.sum
-go.mod
-
 # IDE and editor config files
 .vscode/
 .idea/
