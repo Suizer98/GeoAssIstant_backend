@@ -25,7 +25,7 @@ docker-compose up # Run service with caches
 docker-compose down -v # Clamp down containers
 ```
 
-The local service can be found in https://localhost:8080/swagger
+The local service can be found in https://localhost:10000/swagger
 
 ### Update Go modules
 

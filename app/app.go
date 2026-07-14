@@ -56,7 +56,7 @@ func (a *App) CreateRoutes() {
 	// Dynamically set Swagger host
 	host := os.Getenv("SWAGGER_HOST")
 	if host == "" {
-		host = "localhost:8080"
+		host = "localhost:10000"
 	}
 	docs.SwaggerInfo.Host = host
 	docs.SwaggerInfo.BasePath = "/"
@@ -89,7 +89,7 @@ func (a *App) CreateRoutes() {
 }
 
 func (a *App) Run() {
-	if err := a.Routes.Run(":8080"); err != nil {
+	if err := a.Routes.Run(":10000"); err != nil {
 		log.Fatalf("Failed to start the server: %v", err)
 	}
 }

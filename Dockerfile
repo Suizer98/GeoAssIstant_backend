@@ -9,6 +9,6 @@ RUN go mod download
 
 COPY . /usr/src/app/
 
-EXPOSE 8080
+EXPOSE 10000
 
 CMD ["CompileDaemon", "--build=go build -buildvcs=false -o main .", "--command=./main", "--polling"]

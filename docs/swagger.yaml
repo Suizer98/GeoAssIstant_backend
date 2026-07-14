@@ -36,7 +36,7 @@ definitions:
       username:
         type: string
     type: object
-host: localhost:8080
+host: localhost:10000
 info:
   contact:
     email: teysuizer1998@gmail.com
